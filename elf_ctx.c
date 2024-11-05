@@ -327,9 +327,11 @@ void elf_ctx_init(struct ukarch_ctx *ctx, struct elf_prog *prog,
 	/* Same as envp, pushing NULL first */
 	ukarch_rctx_stackpush_packed(ctx, (long)NULL);
 	if (args_count)
-		for (i = args_count - 1; i >= 0; i--)
+		for (i = args_count - 1; i >= 0; i--) {
+			uk_pr_debug("argv[%d]=\"%s\"\n", i, infoblk_argvp[i]);
 			ukarch_rctx_stackpush_packed(ctx,
 						     (__uptr)infoblk_argvp[i]);
+		}
 	ukarch_rctx_stackpush_packed(ctx, (long)args_count);
 
 	UK_ASSERT(IS_ALIGNED(ctx->sp, UKARCH_SP_ALIGN));
