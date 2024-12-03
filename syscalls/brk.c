@@ -37,6 +37,7 @@
 #include <uk/alloc.h>
 #include <uk/print.h>
 #include <uk/syscall.h>
+#include <uk/thread.h>
 #include <uk/arch/limits.h>
 
 #ifndef PAGES2BYTES
@@ -46,16 +47,33 @@
 #define HEAP_PAGES CONFIG_APPELFLOADER_BRK_NBPAGES
 #define HEAP_LEN   PAGES2BYTES(CONFIG_APPELFLOADER_BRK_NBPAGES)
 
-/*
- * For now we only support one custom heap
- */
-static void *base = NULL;
-static void *brk_cur = NULL;
-static void *zeroed = NULL;
-static intptr_t len = 0;
+extern __uk_tls __uptr _uk_brk_base;
+extern __uk_tls __uptr _uk_brk_cur;
+extern __uk_tls __uptr _uk_brk_zeroed;
+extern __uk_tls __sz _uk_brk_len;
 
 UK_LLSYSCALL_R_DEFINE(void *, brk, void *, addr)
 {
+	void *base = NULL;
+	void *brk_cur = NULL;
+	void *zeroed = NULL;
+	intptr_t len = 0;
+
+	//uk_pr_err("doing brk for thread 0x%lx @ 0x%lx\n", uk_thread_current(), addr);
+
+	ukplat_tlsp_get();
+
+	base = (void *)uk_thread_uktls_var(uk_thread_current(), _uk_brk_base);
+	brk_cur = (void *)uk_thread_uktls_var(uk_thread_current(), _uk_brk_cur);
+	zeroed = (void *)uk_thread_uktls_var(uk_thread_current(), _uk_brk_zeroed);
+	len = (intptr_t)uk_thread_uktls_var(uk_thread_current(), _uk_brk_len);
+#if 0
+	uk_pr_err("base: 0x%lx\n", (long)base);
+	uk_pr_err("cur: 0x%lx\n", (long)brk_cur);
+	uk_pr_err("zeroed: 0x%lx\n", (long)zeroed);
+	uk_pr_err("len: 0x%lx\n", (long)len);
+#endif
+
 	/* allocate brk context */
 	if (!base) {
 		base = uk_palloc(uk_alloc_get_default(), HEAP_PAGES);
@@ -79,6 +97,12 @@ UK_LLSYSCALL_R_DEFINE(void *, brk, void *, addr)
 	if (addr < base || addr >= (base + HEAP_LEN)) {
 		uk_pr_debug("Outside of brk range, return current brk %p\n",
 			    brk_cur);
+
+		uk_thread_uktls_var(uk_thread_current(), _uk_brk_base) = base;
+		uk_thread_uktls_var(uk_thread_current(), _uk_brk_cur) = brk_cur;
+		uk_thread_uktls_var(uk_thread_current(), _uk_brk_zeroed) = zeroed;
+		uk_thread_uktls_var(uk_thread_current(), _uk_brk_len) = len;
+
 		return brk_cur;
 	}
 
@@ -91,6 +115,11 @@ UK_LLSYSCALL_R_DEFINE(void *, brk, void *, addr)
 	brk_cur = addr;
 	zeroed = addr;
 	len = addr - base;
+
+	uk_thread_uktls_var(uk_thread_current(), _uk_brk_base) = base;
+	uk_thread_uktls_var(uk_thread_current(), _uk_brk_cur) = brk_cur;
+	uk_thread_uktls_var(uk_thread_current(), _uk_brk_zeroed) = zeroed;
+	uk_thread_uktls_var(uk_thread_current(), _uk_brk_len) = len;
 
 	uk_pr_debug("brk @ %p (brk heap region: %p-%p)\n", addr, base, base + HEAP_LEN);
 
