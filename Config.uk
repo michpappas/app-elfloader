@@ -14,7 +14,9 @@ config APPELFLOADER_DEPENDENCIES
 	imply PAGING
 	imply LIBUKVMEM
 	imply LIBPOSIX_MMAP
-	imply LIBVFSCORE
+#	imply LIBVFSCORE
+	imply LIBPOSIX_VFS
+	imply LIBPOSIX_VFS_SYSCALLS
 	imply LIBPOSIX_POLL
 	imply LIBPOSIX_POLL_YIELD
 	imply LIBPOSIX_SYSINFO
@@ -29,7 +31,8 @@ choice
 
 	config APPELFLOADER_VFSEXEC
 		bool "VFS"
-		select LIBVFSCORE
+		select LIBPOSIX_VFS
+		select LIBPOSIX_VFS_SYSCALLS
 		help
 			Loads an ELF executable from the virtual filesystem.
 			elfloader will automatically side-load a dynamic loader
